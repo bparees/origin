@@ -8,9 +8,11 @@ import (
 	"github.com/openshift/origin/pkg/build/api"
 )
 
+const originalImage = "originalImage"
+
 func TestGenerateBuildFromConfig(t *testing.T) {
 	source := mockSource()
-	strategy := mockStrategy()
+	strategy := mockDockerStrategy()
 	output := mockOutput()
 
 	bc := &api.BuildConfig{
@@ -52,7 +54,7 @@ func TestGenerateBuildFromConfig(t *testing.T) {
 
 func TestGenerateBuildFromBuild(t *testing.T) {
 	source := mockSource()
-	strategy := mockStrategy()
+	strategy := mockDockerStrategy()
 	output := mockOutput()
 
 	build := &api.Build{
@@ -80,6 +82,152 @@ func TestGenerateBuildFromBuild(t *testing.T) {
 	}
 }
 
+func TestSubstituteImage(t *testing.T) {
+	source := mockSource()
+	strategy := mockDockerStrategy()
+	output := mockOutput()
+	const newImage = "newImage"
+
+	bc := &api.BuildConfig{
+		ObjectMeta: kapi.ObjectMeta{
+			Name: "test-build-config",
+		},
+		Parameters: api.BuildParameters{
+			Source: source,
+			Revision: &api.SourceRevision{
+				Type: api.BuildSourceGit,
+				Git: &api.GitSourceRevision{
+					Commit: "1234",
+				},
+			},
+			Strategy: strategy,
+			Output:   output,
+		},
+	}
+
+	// Docker build with nil base image
+	// base image should still be nil
+	build := GenerateBuildFromConfig(bc, nil)
+	SubstituteImageReferences(build, originalImage, newImage)
+	if build.Parameters.Strategy.DockerStrategy.BaseImage != "" {
+		t.Errorf("Base image name was improperly substituted in docker strategy")
+	}
+	// Docker build with a matched base image
+	// base image should be replaced.
+	build.Parameters.Strategy.DockerStrategy.BaseImage = originalImage
+	SubstituteImageReferences(build, originalImage, newImage)
+	if build.Parameters.Strategy.DockerStrategy.BaseImage != newImage {
+		t.Errorf("Base image name was not substituted in docker strategy")
+	}
+	// Docker build with an unmatched base image
+	// base image should not be replaced.
+	SubstituteImageReferences(build, "unmatched", "dummy")
+	if build.Parameters.Strategy.DockerStrategy.BaseImage == "dummy2" {
+		t.Errorf("Base image name was improperly substituted in docker strategy")
+	}
+
+	// STI build with a matched base image
+	// base image should be replaced
+	build = GenerateBuildFromConfig(bc, nil)
+	build.Parameters.Strategy = mockSTIStrategy()
+	SubstituteImageReferences(build, originalImage, newImage)
+	if build.Parameters.Strategy.STIStrategy.Image != newImage {
+		t.Errorf("Base image name was not substituted in sti strategy")
+	}
+	// STI build with an unmatched base image
+	// base image should not be replaced
+	SubstituteImageReferences(build, "unmatched", "dummy")
+	if build.Parameters.Strategy.STIStrategy.Image == "dummy" {
+		t.Errorf("Base image name was improperly substituted in STI strategy")
+	}
+
+	// Full custom build with a BaseImage and a well defined environment variable image value,
+	// both should be replaced.  Additional environment variables should not be touched.
+	build = GenerateBuildFromConfig(bc, nil)
+	build.Parameters.Strategy = mockCustomStrategy()
+	build.Parameters.Strategy.CustomStrategy.Env = make([]kapi.EnvVar, 2)
+	build.Parameters.Strategy.CustomStrategy.Env[0] = kapi.EnvVar{Name: "someImage", Value: originalImage}
+	build.Parameters.Strategy.CustomStrategy.Env[1] = kapi.EnvVar{Name: api.CustomBuildStrategyBaseImageKey, Value: originalImage}
+	SubstituteImageReferences(build, originalImage, newImage)
+	if build.Parameters.Strategy.CustomStrategy.Image != newImage {
+		t.Errorf("Base image name was not substituted in custom strategy")
+	}
+	if build.Parameters.Strategy.CustomStrategy.Env[0].Value != originalImage {
+		t.Errorf("Random env variable %s was improperly substituted in custom strategy", build.Parameters.Strategy.CustomStrategy.Env[0].Name)
+	}
+	if build.Parameters.Strategy.CustomStrategy.Env[1].Value != newImage {
+		t.Errorf("Image env variable was not properly substituted in custom strategy")
+	}
+	if c := len(build.Parameters.Strategy.CustomStrategy.Env); c != 2 {
+		t.Errorf("Expected %d, found %d environment variables", 2, c)
+	}
+
+	// Full custom build with base image that is not matched
+	// Base image name should be unchanged
+	SubstituteImageReferences(build, "dummy", "dummy")
+	if build.Parameters.Strategy.CustomStrategy.Image != newImage {
+		t.Errorf("Base image name was improperly substituted in custom strategy")
+	}
+
+	// Full custom build with a BaseImage and a well defined environment variable image value that does not match the new image
+	// Only bsase image should be replaced.  Environment variables should not be touched.
+	build = GenerateBuildFromConfig(bc, nil)
+	build.Parameters.Strategy = mockCustomStrategy()
+	build.Parameters.Strategy.CustomStrategy.Env = make([]kapi.EnvVar, 2)
+	build.Parameters.Strategy.CustomStrategy.Env[0] = kapi.EnvVar{Name: "someImage", Value: originalImage}
+	build.Parameters.Strategy.CustomStrategy.Env[1] = kapi.EnvVar{Name: api.CustomBuildStrategyBaseImageKey, Value: "dummy"}
+	SubstituteImageReferences(build, originalImage, newImage)
+	if build.Parameters.Strategy.CustomStrategy.Image != newImage {
+		t.Errorf("Base image name was not substituted in custom strategy")
+	}
+	if build.Parameters.Strategy.CustomStrategy.Env[0].Value != originalImage {
+		t.Errorf("Random env variable %s was improperly substituted in custom strategy", build.Parameters.Strategy.CustomStrategy.Env[0].Name)
+	}
+	if build.Parameters.Strategy.CustomStrategy.Env[1].Value != "dummy" {
+		t.Errorf("Image env variable was improperly substituted in custom strategy")
+	}
+	if c := len(build.Parameters.Strategy.CustomStrategy.Env); c != 2 {
+		t.Errorf("Expected %d, found %d environment variables", 2, c)
+	}
+
+	// Custom build with a base Image but no image environment variable.
+	// base image should be replaced, new image environment variable should be added,
+	// existing environment variable should be untouched
+	build = GenerateBuildFromConfig(bc, nil)
+	build.Parameters.Strategy = mockCustomStrategy()
+	build.Parameters.Strategy.CustomStrategy.Env = make([]kapi.EnvVar, 1)
+	build.Parameters.Strategy.CustomStrategy.Env[0] = kapi.EnvVar{Name: "someImage", Value: originalImage}
+	SubstituteImageReferences(build, originalImage, newImage)
+	if build.Parameters.Strategy.CustomStrategy.Image != newImage {
+		t.Errorf("Base image name was not substituted in custom strategy")
+	}
+	if build.Parameters.Strategy.CustomStrategy.Env[0].Value != originalImage {
+		t.Errorf("Random env variable was improperly substituted in custom strategy")
+	}
+	if build.Parameters.Strategy.CustomStrategy.Env[1].Name != api.CustomBuildStrategyBaseImageKey || build.Parameters.Strategy.CustomStrategy.Env[1].Value != newImage {
+		t.Errorf("Image env variable was not added in custom strategy %s %s |", build.Parameters.Strategy.CustomStrategy.Env[1].Name, build.Parameters.Strategy.CustomStrategy.Env[1].Value)
+	}
+	if c := len(build.Parameters.Strategy.CustomStrategy.Env); c != 2 {
+		t.Errorf("Expected %d, found %d environment variables", 2, c)
+	}
+
+	// Custom build with a base Image but no environment variables
+	// base image should be replaced, new image environment variable should be added
+	build = GenerateBuildFromConfig(bc, nil)
+	build.Parameters.Strategy = mockCustomStrategy()
+	SubstituteImageReferences(build, originalImage, newImage)
+	if build.Parameters.Strategy.CustomStrategy.Image != newImage {
+		t.Errorf("Base image name was not substituted in custom strategy")
+	}
+	if build.Parameters.Strategy.CustomStrategy.Env[0].Name != api.CustomBuildStrategyBaseImageKey || build.Parameters.Strategy.CustomStrategy.Env[0].Value != newImage {
+		t.Errorf("New image name variable was not added to environment list in custom strategy")
+	}
+	if c := len(build.Parameters.Strategy.CustomStrategy.Env); c != 1 {
+		t.Errorf("Expected %d, found %d environment variables", 1, c)
+	}
+
+}
+
 func mockSource() api.BuildSource {
 	return api.BuildSource{
 		Type: api.BuildSourceGit,
@@ -90,12 +238,30 @@ func mockSource() api.BuildSource {
 	}
 }
 
-func mockStrategy() api.BuildStrategy {
+func mockDockerStrategy() api.BuildStrategy {
 	return api.BuildStrategy{
 		Type: api.DockerBuildStrategyType,
 		DockerStrategy: &api.DockerBuildStrategy{
 			ContextDir: "/test/dir",
 			NoCache:    true,
+		},
+	}
+}
+
+func mockSTIStrategy() api.BuildStrategy {
+	return api.BuildStrategy{
+		Type: api.STIBuildStrategyType,
+		STIStrategy: &api.STIBuildStrategy{
+			Image: originalImage,
+		},
+	}
+}
+
+func mockCustomStrategy() api.BuildStrategy {
+	return api.BuildStrategy{
+		Type: api.CustomBuildStrategyType,
+		CustomStrategy: &api.CustomBuildStrategy{
+			Image: originalImage,
 		},
 	}
 }
