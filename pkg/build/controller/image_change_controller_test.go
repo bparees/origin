@@ -174,8 +174,29 @@ func TestNewImageDifferentTagUpdate(t *testing.T) {
 	}
 }
 
-func TestNewDifferentImageUpdate(t *testing.T) {
+func TestNewImageDifferentTagUpdate2(t *testing.T) {
 	// this buildconfig references a different tag than the one that will be updated
+	buildcfg := mockBuildConfig("registry.com/namespace/imagename", "registry.com/namespace/imagename", "testImageRepo", "testTag")
+	buildcfg.Triggers[0].ImageChange.LastTriggeredImageID = "testTagID123"
+	controller := mockImageChangeController(buildcfg, "testImageRepo", "registry.com/namespace/imagename",
+		map[string]string{"otherTag": "newImageID123", "testTag": "testTagID123"})
+	controller.HandleImageRepo()
+	buildCreator := controller.BuildCreator.(*mockBuildCreator)
+	buildConfigUpdater := controller.BuildConfigUpdater.(*mockBuildConfigUpdater)
+
+	if buildCreator.buildcfg != nil {
+		t.Error("New build created when a different repository was updated!")
+	}
+	if len(buildCreator.imageSubstitutions) != 0 {
+		t.Errorf("Should not have had any image substitutions since tag does not exist in imagerepo")
+	}
+	if buildConfigUpdater.buildcfg != nil {
+		t.Error("BuildConfig was updated when a different repository was updated!")
+	}
+}
+
+func TestNewDifferentImageUpdate(t *testing.T) {
+	// this buildconfig references a different image than the one that will be updated
 	buildcfg := mockBuildConfig("registry.com/namespace/imagename1", "registry.com/namespace/imagename1", "testImageRepo1", "testTag1")
 	controller := mockImageChangeController(buildcfg, "testImageRepo2", "registry.com/namespace/imagename2", map[string]string{"testTag2": "newImageID123"})
 	controller.HandleImageRepo()
