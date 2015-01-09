@@ -85,8 +85,9 @@ func (factory *ImageChangeControllerFactory) Create() *controller.ImageChangeCon
 	cache.NewReflector(&buildConfigLW{client: factory.Client}, &buildapi.BuildConfig{}, store).Run()
 
 	return &controller.ImageChangeController{
-		BuildConfigStore: store,
-		BuildCreator:     &ClientBuildCreator{factory.Client},
+		BuildConfigStore:   store,
+		BuildConfigUpdater: &ClientBuildConfigUpdater{factory.Client},
+		BuildCreator:       &ClientBuildCreator{factory.Client},
 		NextImageRepository: func() *imageapi.ImageRepository {
 			repo := queue.Pop().(*imageapi.ImageRepository)
 			panicIfStopped(factory.Stop, "build image change controller stopped")
@@ -219,7 +220,12 @@ func (c ClientPodManager) CreatePod(namespace string, pod *kapi.Pod) (*kapi.Pod,
 	return c.KubeClient.Pods(namespace).Create(pod)
 }
 
-// ClientBuildUpdater is a buildUpdater which delegates to the OpenShift client interfaces
+// DeletePod destroys a pod using the Kubernetes client.
+func (c ClientPodManager) DeletePod(namespace string, pod *kapi.Pod) error {
+	return c.KubeClient.Pods(namespace).Delete(pod.Name)
+}
+
+// ClientBuildUpdater is a buildUpdater which delegates to the OpenShift client interfaces.
 type ClientBuildUpdater struct {
 	Client osclient.Interface
 }
@@ -229,7 +235,7 @@ func (c ClientBuildUpdater) UpdateBuild(namespace string, build *buildapi.Build)
 	return c.Client.Builds(namespace).Update(build)
 }
 
-// ClientBuildCreator is a buildCreator which delegates to the OpenShift client interfaces
+// ClientBuildCreator is a buildCreator which delegates to the OpenShift client interfaces.
 type ClientBuildCreator struct {
 	Client osclient.Interface
 }
@@ -247,7 +253,13 @@ func (c *ClientBuildCreator) CreateBuild(config *buildapi.BuildConfig, imageSubs
 	return nil
 }
 
-// DeletePod destroys a pod using the Kubernetes client.
-func (c ClientPodManager) DeletePod(namespace string, pod *kapi.Pod) error {
-	return c.KubeClient.Pods(namespace).Delete(pod.Name)
+// ClientBuildConfigUpdater is a buildConfigUpdater which delegates to the OpenShift client interfaces.
+type ClientBuildConfigUpdater struct {
+	Client osclient.Interface
+}
+
+// UpdateBuildConfig updates buildConfig using the OpenShift client.
+func (c *ClientBuildConfigUpdater) UpdateBuildConfig(buildConfig *buildapi.BuildConfig) error {
+	_, err := c.Client.BuildConfigs(buildConfig.Namespace).Update(buildConfig)
+	return err
 }

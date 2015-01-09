@@ -240,6 +240,9 @@ type ImageChangeTrigger struct {
 	ImageRepositoryRef *kapi.ObjectReference `json:"imageRepositoryRef" yaml:"imageRepositoryRef"`
 	// Tag is the name of an image repository tag to watch for changes.
 	Tag string `json:"tag,omitempty" yaml:"tag,omitempty"`
+	// LastTriggeredImageID is used internally by the ImageChangeController to save last
+	// used image ID for build
+	LastTriggeredImageID string `json:"lastTriggeredImageID,omitempty" yaml:"lastTriggeredImageID,omitempty"`
 }
 
 // BuildTriggerPolicy describes a policy for a single trigger that results in a new Build.

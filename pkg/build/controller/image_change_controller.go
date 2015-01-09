@@ -16,9 +16,14 @@ import (
 type ImageChangeController struct {
 	NextImageRepository func() *imageapi.ImageRepository
 	BuildConfigStore    cache.Store
+	BuildConfigUpdater  buildConfigUpdater
 	BuildCreator        buildCreator
 	// Stop is an optional channel that controls when the controller exits
 	Stop <-chan struct{}
+}
+
+type buildConfigUpdater interface {
+	UpdateBuildConfig(buildConfig *buildapi.BuildConfig) error
 }
 
 type buildCreator interface {
@@ -42,33 +47,47 @@ func (c *ImageChangeController) HandleImageRepo() {
 		glog.V(4).Infof("Detecting changed images for buildConfig %s", config.Name)
 
 		// Extract relevant triggers for this imageRepo for this config
-		var triggerForConfig *buildapi.ImageChangeTrigger
+		shouldTriggerBuild := false
 		for _, trigger := range config.Triggers {
+			if trigger.Type != buildapi.ImageChangeBuildTriggerType {
+				continue
+			}
 			// for every ImageChange trigger, record the image it substitutes for and get the latest
 			// image id from the imagerepository.  We will substitute all images in the buildconfig
 			// with the latest values from the imagerepositories.
-			if trigger.Type == buildapi.ImageChangeBuildTriggerType {
-				// TODO: we don't really want to create a build for a buildconfig based the "test" tag if the "prod" tag is what just got
-				// updated, but ImageRepository doesn't give us that granularity today, so the only way to avoid these spurious builds is
-				// to check if the new imageid is different from the last time we built this buildcfg.  Need to add this check.
-				// Will be effectively identical the logic needed on startup to spin new builds only if we missed a new image event.
-				var tag string
-				if tag = trigger.ImageChange.Tag; len(tag) == 0 {
-					tag = buildapi.DefaultImageTag
-				}
-				if repoImageID, repoHasTag := imageRepo.Tags[tag]; repoHasTag {
-					imageSubstitutions[trigger.ImageChange.Image] = imageRepo.DockerImageRepository + ":" + repoImageID
-				}
-				if trigger.ImageChange.ImageRepositoryRef.Name == imageRepo.Name {
-					triggerForConfig = trigger.ImageChange
-				}
+			icTrigger := trigger.ImageChange
+
+			// TODO: we don't really want to create a build for a buildconfig based the "test" tag if the "prod" tag is what just got
+			// updated, but ImageRepository doesn't give us that granularity today, so the only way to avoid these spurious builds is
+			// to check if the new imageid is different from the last time we built this buildcfg.  Need to add this check.
+			// Will be effectively identical the logic needed on startup to spin new builds only if we missed a new image event.
+			tag := icTrigger.Tag
+			if len(tag) == 0 {
+				tag = buildapi.DefaultImageTag
+			}
+			imageID, hasTag := imageRepo.Tags[tag]
+			if !hasTag {
+				continue
+			}
+
+			// comparison requires us to match Name of the image and LastTriggeredImageID
+			// (must be different) to trigger a build
+			if icTrigger.ImageRepositoryRef.Name == imageRepo.Name &&
+				icTrigger.LastTriggeredImageID != imageID {
+				imageSubstitutions[icTrigger.Image] = imageRepo.DockerImageRepository + ":" + imageID
+				shouldTriggerBuild = true
+				icTrigger.LastTriggeredImageID = imageID
 			}
 		}
 
-		if triggerForConfig != nil {
+		if shouldTriggerBuild {
 			glog.V(4).Infof("Running build for buildConfig %s", config.Name)
 			if err := c.BuildCreator.CreateBuild(config, imageSubstitutions); err != nil {
 				glog.V(2).Infof("Error starting build for buildConfig %v: %v", config.Name, err)
+			} else {
+				if err := c.BuildConfigUpdater.UpdateBuildConfig(config); err != nil {
+					glog.V(2).Infof("Error updating buildConfig %v: %v", config.Name, err)
+				}
 			}
 		}
 	}

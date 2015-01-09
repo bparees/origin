@@ -20,7 +20,6 @@ func init() {
 func TestSimpleImageChangeBuildTrigger(t *testing.T) {
 	t.Log("starting run")
 	deleteAllEtcdKeys()
-	//openshift := NewTestOpenshift(t)
 	openshift := NewTestOpenshift(t)
 	defer openshift.Close()
 
@@ -33,7 +32,6 @@ func TestSimpleImageChangeBuildTrigger(t *testing.T) {
 	}
 
 	config := imageChangeBuildConfig()
-	var err error
 
 	watch, err := openshift.Client.Builds(testNamespace).Watch(labels.Everything(), labels.Everything(), "0")
 	if err != nil {
@@ -64,6 +62,14 @@ func TestSimpleImageChangeBuildTrigger(t *testing.T) {
 
 	if newBuild.Parameters.Strategy.DockerStrategy.BaseImage != "registry:8080/openshift/test-image:ref-2" {
 		t.Fatalf("Expected build with base image %s, got %s", "registry:8080/openshift/test-image:ref-2", newBuild.Parameters.Strategy.DockerStrategy.BaseImage)
+	}
+
+	updatedConfig, err := openshift.Client.BuildConfigs(testNamespace).Get(config.Name)
+	if err != nil {
+		t.Fatalf("Couldn't get BuildConfig: %v", err)
+	}
+	if updatedConfig.Triggers[0].ImageChange.LastTriggeredImageID != "ref-2" {
+		t.Errorf("Expected imageID ref-2, got %s", updatedConfig.Triggers[0].ImageChange.LastTriggeredImageID)
 	}
 
 }
