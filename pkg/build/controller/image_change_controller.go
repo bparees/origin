@@ -56,11 +56,6 @@ func (c *ImageChangeController) HandleImageRepo() {
 			// image id from the imagerepository.  We will substitute all images in the buildconfig
 			// with the latest values from the imagerepositories.
 			icTrigger := trigger.ImageChange
-
-			// TODO: we don't really want to create a build for a buildconfig based the "test" tag if the "prod" tag is what just got
-			// updated, but ImageRepository doesn't give us that granularity today, so the only way to avoid these spurious builds is
-			// to check if the new imageid is different from the last time we built this buildcfg.  Need to add this check.
-			// Will be effectively identical the logic needed on startup to spin new builds only if we missed a new image event.
 			tag := icTrigger.Tag
 			if len(tag) == 0 {
 				tag = buildapi.DefaultImageTag
@@ -70,7 +65,6 @@ func (c *ImageChangeController) HandleImageRepo() {
 				continue
 			}
 
-			// comparison requires us to match Name of the image and LastTriggeredImageID
 			// (must be different) to trigger a build
 			if icTrigger.ImageRepositoryRef.Name == imageRepo.Name &&
 				icTrigger.LastTriggeredImageID != imageID {

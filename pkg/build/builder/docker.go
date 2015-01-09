@@ -155,15 +155,11 @@ func (d *DockerBuilder) addBuildParameters(dir string) error {
 		newFileData = newFileData + fmt.Sprintf("ENV %s %s\n", k, v)
 	}
 
-	err = ioutil.WriteFile(dockerfilePath, []byte(newFileData), filePerm)
-	if err != nil {
+	if ioutil.WriteFile(dockerfilePath, []byte(newFileData), filePerm); err != nil {
 		return err
 	}
 
-	var noCache bool
-	if d.build.Parameters.Strategy.DockerStrategy != nil {
-		noCache = d.build.Parameters.Strategy.DockerStrategy.NoCache
-	}
+	noCache := d.build.Parameters.Strategy.DockerStrategy != nil && d.build.Parameters.Strategy.DockerStrategy.NoCache
 	return buildImage(d.dockerClient, dir, noCache, imageTag(d.build), d.tar)
 }
 

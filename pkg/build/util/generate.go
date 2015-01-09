@@ -44,7 +44,6 @@ func SubstituteImageReferences(build *api.Build, oldImage string, newImage strin
 		build.Parameters.Strategy.STIStrategy != nil &&
 		build.Parameters.Strategy.STIStrategy.Image == oldImage:
 		build.Parameters.Strategy.STIStrategy.Image = newImage
-
 	case build.Parameters.Strategy.Type == api.CustomBuildStrategyType:
 		// update env variable references to the old image with the new image
 		if build.Parameters.Strategy.CustomStrategy.Env == nil {
