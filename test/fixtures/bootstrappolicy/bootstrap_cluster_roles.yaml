@@ -207,6 +207,7 @@ items:
     - builds/docker
     - builds/log
     - builds/source
+    - builds/jenkinspipeline
     - deploymentconfigrollbacks
     - deploymentconfigs
     - deploymentconfigs/log
@@ -387,6 +388,7 @@ items:
     - builds/docker
     - builds/log
     - builds/source
+    - builds/jenkinspipeline
     - deploymentconfigrollbacks
     - deploymentconfigs
     - deploymentconfigs/log
@@ -1303,6 +1305,7 @@ items:
     - builds/custom
     - builds/docker
     - builds/source
+    - builds/jenkinspipeline
     verbs:
     - create
   - apiGroups: null
