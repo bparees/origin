@@ -707,6 +707,20 @@ objects:
           action: keep
           regex: api-server;https
 
+      # Scrape config for the imagestream smoketest
+      - job_name: 'openshift-imagestream-smoketest'
+        scheme: http
+        kubernetes_sd_configs:
+        - role: endpoints
+          namespaces:
+            names:
+            - imagestream-smoketest
+
+        relabel_configs:
+        - source_labels: [__meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
+          action: keep
+          regex: monitor-imagestream-import;web
+
       # Scrape config for the router
       - job_name: 'openshift-router'
         scheme: https
