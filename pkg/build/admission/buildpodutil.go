@@ -80,8 +80,8 @@ func SetPodLogLevelFromBuild(pod *v1.Pod, build *buildapi.Build) error {
 			break
 		}
 	}
-	c := &pod.Spec.Containers[0]
-	c.Args = append(c.Args, "--loglevel="+buildLogLevel)
+	//	c := &pod.Spec.Containers[0]
+	//	c.Args = append(c.Args, "--loglevel="+buildLogLevel)
 	for i := range pod.Spec.InitContainers {
 		pod.Spec.InitContainers[i].Args = append(pod.Spec.InitContainers[i].Args, "--loglevel="+buildLogLevel)
 	}

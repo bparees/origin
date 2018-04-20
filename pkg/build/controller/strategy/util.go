@@ -168,6 +168,9 @@ func setupDockerSecrets(pod *v1.Pod, container *v1.Container, pushSecret, pullSe
 		container.Env = append(container.Env, []v1.EnvVar{
 			{Name: "PUSH_DOCKERCFG_PATH", Value: DockerPushSecretMountPath},
 		}...)
+		container.Env = append(container.Env, []v1.EnvVar{
+			{Name: "GOOGLE_APPLICATION_CREDENTIALS", Value: DockerPushSecretMountPath + "/config.json"},
+		}...)
 		glog.V(3).Infof("%s will be used for docker push in %s", DockerPushSecretMountPath, pod.Name)
 	}
 

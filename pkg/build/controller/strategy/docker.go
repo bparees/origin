@@ -47,6 +47,7 @@ func (bs *DockerBuildStrategy) CreateBuildPod(build *buildapi.Build) (*v1.Pod, e
 		serviceAccount = buildutil.BuilderServiceAccountName
 	}
 
+	zero := int64(0)
 	pod := &v1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      buildapi.GetBuildPodName(build),
@@ -57,14 +58,38 @@ func (bs *DockerBuildStrategy) CreateBuildPod(build *buildapi.Build) (*v1.Pod, e
 			ServiceAccountName: serviceAccount,
 			Containers: []v1.Container{
 				{
-					Name:    dockerBuild,
-					Image:   bs.Image,
-					Command: []string{"openshift-docker-build"},
-					Env:     copyEnvVarSlice(containerEnv),
-					// TODO: run unprivileged https://github.com/openshift/origin/issues/662
+					Name: dockerBuild,
+					/*
+						Image:   bs.Image,
+						Command: []string{"openshift-docker-build"},
+					*/
+
+					/*
+						Image:   "kaniko:centos", //bs.Image,
+						Command: []string{"/bin/sleep"},
+						Args:    []string{"600"},
+					*/
+
+					Image: "gcr.io/kaniko-project/executor:latest",
+					//Image:   "kaniko:real",
+					Command: []string{"/kaniko/executor"},
+					Args: []string{"-c", buildutil.BuildWorkDirMount + "/inputs",
+						"-f", buildutil.BuildWorkDirMount + "/inputs/Dockerfile",
+						//"-v", "debug",
+						"-d", build.Status.OutputDockerImageReference},
+
+					Env: copyEnvVarSlice(containerEnv),
+
+					/*
+						// TODO: run unprivileged https://github.com/openshift/origin/issues/662
+						SecurityContext: &v1.SecurityContext{
+							Privileged: &privileged,
+						},
+					*/
 					SecurityContext: &v1.SecurityContext{
-						Privileged: &privileged,
+						RunAsUser: &zero,
 					},
+
 					TerminationMessagePolicy: v1.TerminationMessageFallbackToLogsOnError,
 					VolumeMounts: []v1.VolumeMount{
 						{
@@ -92,12 +117,16 @@ func (bs *DockerBuildStrategy) CreateBuildPod(build *buildapi.Build) (*v1.Pod, e
 	// can't conditionalize the manage-dockerfile init container because we don't
 	// know until we've cloned, whether or not we've got a dockerfile to manage
 	// (also if it's a docker type build, we should always have a dockerfile to manage)
+	gitEnv := copyEnvVarSlice(containerEnv)
+	gitEnv = append(gitEnv, v1.EnvVar{Name: "GIT_COMMITTER_NAME", Value: "openshift"})
+	gitEnv = append(gitEnv, v1.EnvVar{Name: "GIT_COMMITTER_EMAIL", Value: "openshift@openshift.com"})
+
 	if build.Spec.Source.Git != nil || build.Spec.Source.Binary != nil {
 		gitCloneContainer := v1.Container{
 			Name:    GitCloneContainer,
 			Image:   bs.Image,
 			Command: []string{"openshift-git-clone"},
-			Env:     copyEnvVarSlice(containerEnv),
+			Env:     gitEnv,
 			TerminationMessagePolicy: v1.TerminationMessageFallbackToLogsOnError,
 			VolumeMounts: []v1.VolumeMount{
 				{
@@ -161,8 +190,8 @@ func (bs *DockerBuildStrategy) CreateBuildPod(build *buildapi.Build) (*v1.Pod, e
 	}
 
 	setOwnerReference(pod, build)
-	setupDockerSocket(pod)
-	setupCrioSocket(pod)
+	//setupDockerSocket(pod)
+	//setupCrioSocket(pod)
 	setupDockerSecrets(pod, &pod.Spec.Containers[0], build.Spec.Output.PushSecret, strategy.PullSecret, build.Spec.Source.Images)
 	// For any secrets the user wants to reference from their Assemble script or Dockerfile, mount those
 	// secrets into the main container.  The main container includes logic to copy them from the mounted
