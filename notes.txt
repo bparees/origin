@@ -1,0 +1,32 @@
+Must use gcr.io
+
+
+# make images public in gcr
+
+gsutil defacl ch -u AllUsers:R gs://artifacts.{PROJECT_NAME}.appspot.com
+gsutil acl ch -r -u AllUsers:R gs://artifacts.{PROJECT_NAME}.appspot.com
+gsutil acl ch -u AllUsers:R gs://artifacts.{PROJECT_NAME}.appspot.com
+
+
+
+ISSUES
+
+kaniko related:
+Can't move files around? https://github.com/GoogleContainerTools/kaniko/issues/132
+Can't use FROM with sha reference? https://github.com/GoogleContainerTools/kaniko/issues/136
+scl enable commands don't really work(your container is not what you think it is)
+- Kaniko is to docker build what docker is to a VM - you're not as isolated as you think you are.
+pulling from insecure registries doesn't work (means no pullthrough from openshift registry by default)
+has to unpack the base image into the pod container, potentially stomping things like /var/run
+can't push to anywhere except GCR
+
+
+Demo
+
+https://github.com/bparees/kaniko_demo/blob/master/views/index.html
+
+oc create secret generic mypush --from-file=config.json=/tmp/t/config.gcr 
+oc new-app -f application-template-dockerbuild.json
+# wait for build to complete
+oc scale --replicas=1 dc frontend
+oc rollout latest frontend
