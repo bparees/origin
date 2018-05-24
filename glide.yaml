@@ -48,6 +48,10 @@ import:
 - package: github.com/openshift/service-serving-cert-signer
   version: release-3.10
 
+- package: github.com/openshift/source-to-image
+  repo: https://github.com/bparees/source-to-image
+  version: dockerfile
+
 # forks third
 # master
 - package: github.com/google/certificate-transparency
