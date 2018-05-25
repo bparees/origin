@@ -10,12 +10,12 @@ import (
 	"text/tabwriter"
 
 	"github.com/openshift/source-to-image/pkg/api"
-	"github.com/openshift/source-to-image/pkg/build"
-	"github.com/openshift/source-to-image/pkg/docker"
+	//	"github.com/openshift/source-to-image/pkg/build"
+	//	"github.com/openshift/source-to-image/pkg/docker"
 )
 
 // Config returns the Config object in nice readable, tabbed format.
-func Config(client docker.Client, config *api.Config) string {
+func Config(config *api.Config) string {
 	out, err := tabbedString(func(out io.Writer) error {
 		if len(config.DisplayName) > 0 {
 			fmt.Fprintf(out, "Application Name:\t%s\n", config.DisplayName)
@@ -23,7 +23,7 @@ func Config(client docker.Client, config *api.Config) string {
 		if len(config.Description) > 0 {
 			fmt.Fprintf(out, "Description:\t%s\n", config.Description)
 		}
-		describeBuilderImage(client, config, out)
+		describeBuilderImage(config, out)
 		describeRuntimeImage(config, out)
 		fmt.Fprintf(out, "Source:\t%s\n", config.Source)
 		if len(config.ContextDir) > 0 {
@@ -94,31 +94,37 @@ func Config(client docker.Client, config *api.Config) string {
 	return out
 }
 
-func describeBuilderImage(client docker.Client, config *api.Config, out io.Writer) {
-	c := &api.Config{
-		DockerConfig:       config.DockerConfig,
-		PullAuthentication: config.PullAuthentication,
-		BuilderImage:       config.BuilderImage,
-		BuilderPullPolicy:  config.BuilderPullPolicy,
-		Tag:                config.Tag,
-		IncrementalAuthentication: config.IncrementalAuthentication,
-	}
-	pr, err := docker.GetBuilderImage(client, c)
-	if err == nil {
-		build.GenerateConfigFromLabels(c, pr)
-		if len(c.DisplayName) > 0 {
-			fmt.Fprintf(out, "Builder Name:\t%s\n", c.DisplayName)
+func describeBuilderImage(config *api.Config, out io.Writer) {
+	fmt.Fprintf(out, "Builder Image:\t%s\n", config.BuilderImage)
+
+	/*
+		c := &api.Config{
+			DockerConfig:       config.DockerConfig,
+			PullAuthentication: config.PullAuthentication,
+			BuilderImage:       config.BuilderImage,
+			BuilderPullPolicy:  config.BuilderPullPolicy,
+			Tag:                config.Tag,
+			IncrementalAuthentication: config.IncrementalAuthentication,
 		}
-		fmt.Fprintf(out, "Builder Image:\t%s\n", config.BuilderImage)
-		if len(c.BuilderImageVersion) > 0 {
-			fmt.Fprintf(out, "Builder Image Version:\t%s\n", c.BuilderImageVersion)
+
+
+		pr, err := docker.GetBuilderImage(client, c)
+		if err == nil {
+			build.GenerateConfigFromLabels(c, pr)
+			if len(c.DisplayName) > 0 {
+				fmt.Fprintf(out, "Builder Name:\t%s\n", c.DisplayName)
+			}
+			fmt.Fprintf(out, "Builder Image:\t%s\n", config.BuilderImage)
+			if len(c.BuilderImageVersion) > 0 {
+				fmt.Fprintf(out, "Builder Image Version:\t%s\n", c.BuilderImageVersion)
+			}
+			if len(c.BuilderBaseImageVersion) > 0 {
+				fmt.Fprintf(out, "Builder Base Version:\t%s\n", c.BuilderBaseImageVersion)
+			}
+		} else {
+			fmt.Fprintf(out, "Error describing image:\t%s\n", err.Error())
 		}
-		if len(c.BuilderBaseImageVersion) > 0 {
-			fmt.Fprintf(out, "Builder Base Version:\t%s\n", c.BuilderBaseImageVersion)
-		}
-	} else {
-		fmt.Fprintf(out, "Error describing image:\t%s\n", err.Error())
-	}
+	*/
 }
 
 func describeRuntimeImage(config *api.Config, out io.Writer) {
