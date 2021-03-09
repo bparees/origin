@@ -342,6 +342,34 @@ var staticSuites = testSuites{
 	},
 	{
 		TestSuite: ginkgo.TestSuite{
+			Name: "experimental/reliability/minimal/parallel",
+			Description: templates.LongDesc(`
+		Set of highly reliable tests that can run in parallel.
+		`),
+			Matches: func(name string) bool {
+				_, exists := minimal[name]
+				return exists && !isDisabled(name) && !strings.Contains(strings.ToLower(name), "[serial]")
+			},
+			Parallelism:          20,
+			MaximumAllowedFlakes: 15,
+			SyntheticEventTests:  ginkgo.JUnitForEventsFunc(synthetictests.StableSystemEventInvariants),
+		},
+	},
+	{
+		TestSuite: ginkgo.TestSuite{
+			Name: "experimental/reliability/minimal/serial",
+			Description: templates.LongDesc(`
+		Set of highly reliable tests that must run serially.
+		`),
+			Matches: func(name string) bool {
+				_, exists := minimal[name]
+				return exists && !isDisabled(name) && strings.Contains(strings.ToLower(name), "[serial]")
+			},
+			SyntheticEventTests: ginkgo.JUnitForEventsFunc(synthetictests.StableSystemEventInvariants),
+		},
+	},
+	{
+		TestSuite: ginkgo.TestSuite{
 			Name: "all",
 			Description: templates.LongDesc(`
 		Run all tests.
