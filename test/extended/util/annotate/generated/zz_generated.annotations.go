@@ -1,9 +1,9 @@
 package generated
 
 import (
-	"fmt"
-	"github.com/onsi/ginkgo"
-	"github.com/onsi/ginkgo/types"
+//	"fmt"
+//	"github.com/onsi/ginkgo"
+//	"github.com/onsi/ginkgo/types"
 )
 
 var annotations = map[string]string{
@@ -16442,6 +16442,7 @@ var annotations = map[string]string{
 	"[Top Level] [sig-storage][Late] Metrics should report short mount times": "should report short mount times [Skipped:Disconnected] [Suite:openshift/conformance/parallel]",
 }
 
+/*
 func init() {
 	ginkgo.WalkTests(func(name, parentName string, node types.TestNode) {
 		combined := name
@@ -16455,3 +16456,4 @@ func init() {
 		}
 	})
 }
+*/

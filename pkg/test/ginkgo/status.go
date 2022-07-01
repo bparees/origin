@@ -148,7 +148,13 @@ func (s *testStatus) Run(ctx context.Context, test *testCase) {
 	defer s.finalizeTest(test)
 
 	test.start = time.Now()
-	c := exec.Command(os.Args[0], "run-test", test.name)
+	if test.binary == "" {
+		test.binary = os.Args[0]
+	}
+	if test.nameFromBinary == "" {
+		test.nameFromBinary = test.name
+	}
+	c := exec.Command(test.binary, "run-test", test.nameFromBinary)
 	c.Env = append(os.Environ(), s.env...)
 	s.fprintf(fmt.Sprintf("started: (%s) %q\n\n", "%d/%d/%d", test.name))
 

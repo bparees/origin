@@ -15,9 +15,14 @@ import (
 )
 
 type testCase struct {
-	name     string
-	spec     ginkgoSpec
-	location types.CodeLocation
+	name           string
+	nameFromBinary string
+	spec           ginkgoSpec
+	location       types.CodeLocation
+	locations      []types.CodeLocation
+
+	// identifies which binary contains this test
+	binary string
 
 	// identifies which tests can be run in parallel (ginkgo runs suites linearly)
 	testExclusion string

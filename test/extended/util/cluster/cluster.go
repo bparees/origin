@@ -280,6 +280,7 @@ func (c *ClusterConfiguration) MatchFn() func(string) bool {
 		skips = append(skips, "[Feature:SCTPConnectivity]")
 	}
 
+	//skips = append(skips, "[Skipped:Proxy]")
 	matchFn := func(name string) bool {
 		for _, skip := range skips {
 			if strings.Contains(name, skip) {

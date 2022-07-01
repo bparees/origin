@@ -34,6 +34,9 @@ func (opt *TestOptions) Run(args []string) error {
 	}
 
 	tests, err := testsForSuite(config.GinkgoConfig)
+	//	for _, t := range tests {
+	//		fmt.Printf("%s\n", t.name)
+	//	}
 	if err != nil {
 		return err
 	}
@@ -58,6 +61,9 @@ func (opt *TestOptions) Run(args []string) error {
 	w := ginkgo.GinkgoWriterType()
 	w.SetStream(true)
 	reporter := NewMinimalReporter(test.name, test.location)
+	fmt.Printf("%#v\n", reporter)
+	fmt.Printf("%#v\n", config.GinkgoConfig)
+
 	ginkgo.GlobalSuite().Run(reporter, "", []reporters.Reporter{reporter}, w, config.GinkgoConfig)
 	summary, setup := reporter.Summary()
 	if summary == nil && setup != nil {

@@ -18,6 +18,7 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 
 	"github.com/onsi/ginkgo"
+	//ginkgotypes "github.com/onsi/ginkgo/types"
 	"github.com/openshift/library-go/pkg/image/reference"
 	"github.com/openshift/library-go/pkg/serviceability"
 	"github.com/spf13/cobra"
@@ -70,7 +71,7 @@ func main() {
 	}
 
 	root.AddCommand(
-		newRunCommand(),
+		newRunSuiteCommand(),
 		newRunUpgradeCommand(),
 		newImagesCommand(),
 		newRunTestCommand(),
@@ -81,6 +82,7 @@ func main() {
 			Out:    os.Stdout,
 			ErrOut: os.Stderr,
 		}),
+		newListTestsCommand(),
 	)
 
 	f := flag.CommandLine.Lookup("v")
@@ -276,7 +278,24 @@ func (opt *runOptions) SelectSuite(suites testSuites, args []string) (*testSuite
 	return &testSuite{TestSuite: *suite}, nil
 }
 
-func newRunCommand() *cobra.Command {
+func newListTestsCommand() *cobra.Command {
+	opt := NewRunOptions(defaultTestImageMirrorLocation)
+	cmd := &cobra.Command{
+		Use:   "list",
+		Short: "List available tests",
+		Long: templates.LongDesc(`
+		List the available tests in this binary
+		`),
+		SilenceUsage:  true,
+		SilenceErrors: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return opt.ListTests()
+		},
+	}
+	return cmd
+}
+
+func newRunSuiteCommand() *cobra.Command {
 	opt := NewRunOptions(defaultTestImageMirrorLocation)
 
 	cmd := &cobra.Command{

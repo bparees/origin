@@ -30,6 +30,7 @@ func testsForSuite(cfg config.GinkgoConfigType) ([]*testCase, error) {
 	return tests, nil
 }
 
+// impl is ginkgo.internal.spec.Spec
 type ginkgoSpec interface {
 	Run(io.Writer)
 	ConcatenatedString() string
