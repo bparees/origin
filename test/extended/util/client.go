@@ -147,6 +147,8 @@ func NewCLIWithoutNamespaceWithContext(ctx context.Context, project string) *CLI
 	start := time.Now()
 	defer StepEnd(ctx, start)
 
+	debug.PrintStack()
+
 	cli := &CLI{
 		kubeFramework: &framework.Framework{
 			SkipNamespaceCreation:    true,
